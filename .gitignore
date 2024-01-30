@@ -65,8 +65,7 @@ code/Cartan-Sync/MATLAB/results
 ehthumbs.db
 Thumbs.db
 
-# Vscode #
-.vscode
-
 # CLion #
 .idea
+
+compile_commands.json
