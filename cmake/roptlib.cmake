@@ -4,7 +4,7 @@ project(roptlib-download NONE)
 
 include(ExternalProject)
 ExternalProject_Add(roptlib
-        GIT_REPOSITORY    https://github.com/yuluntian/ROPTLIB.git
+        GIT_REPOSITORY    https://github.com/mikexyl/ROPTLIB.git
         GIT_TAG           feature/cmake
         SOURCE_DIR        "${CMAKE_CURRENT_BINARY_DIR}/roptlib-src"
         BINARY_DIR        "${CMAKE_CURRENT_BINARY_DIR}/roptlib-build"

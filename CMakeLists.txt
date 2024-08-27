@@ -26,13 +26,7 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 message(STATUS "CMAKE_MODULE_PATH: " ${CMAKE_MODULE_PATH})
 
 # ROPTLIB
-configure_file(cmake/roptlib.cmake roptlib-download/CMakeLists.txt)
-execute_process(COMMAND "${CMAKE_COMMAND}" -G "${CMAKE_GENERATOR}" .
-        WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/roptlib-download")
-execute_process(COMMAND "${CMAKE_COMMAND}" --build .
-        WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/roptlib-download")
-add_subdirectory("${CMAKE_BINARY_DIR}/roptlib-src"
-        "${CMAKE_BINARY_DIR}/roptlib-build")
+find_package(roptlib REQUIRED)
 
 # Dependencies
 find_package(SPQR REQUIRED)

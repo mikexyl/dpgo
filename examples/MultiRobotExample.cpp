@@ -6,13 +6,13 @@
  * See LICENSE for the license information
  * -------------------------------------------------------------------------- */
 
-#include <DPGO/DPGO_types.h>
 #include <DPGO/DPGO_solver.h>
+#include <DPGO/DPGO_types.h>
 #include <DPGO/PGOAgent.h>
 #include <DPGO/QuadraticProblem.h>
 
-#include <cstdlib>
 #include <cassert>
+#include <cstdlib>
 #include <iostream>
 
 using namespace std;
@@ -55,13 +55,12 @@ int main(int argc, char **argv) {
   r = 5;
   bool acceleration = true;
   bool verbose = false;
-  unsigned numIters = 1000;
+  unsigned numIters = 20;
 
   // Construct the centralized problem (used for evaluation)
   std::shared_ptr<PoseGraph> pose_graph = std::make_shared<PoseGraph>(0, r, d);
   pose_graph->setMeasurements(dataset);
   QuadraticProblem problemCentral(pose_graph);
-
 
   /**
   ###########################################
@@ -70,22 +69,33 @@ int main(int argc, char **argv) {
   */
   unsigned int num_poses_per_robot = num_poses / num_robots;
   if (num_poses_per_robot <= 0) {
-    cout << "More robots than total number of poses! Decrease the number of robots" << endl;
+    cout << "More robots than total number of poses! Decrease the number of "
+            "robots"
+         << endl;
     exit(1);
   }
 
+  // open a file to write the start and end indices of each robot
+  ofstream robot_indices_file("robot_indices.txt");
+
   // create mapping from global pose index to local pose index
   map<unsigned, PoseID> PoseMap;
-  for (unsigned robot = 0; robot < (unsigned) num_robots; ++robot) {
+  for (unsigned robot = 0; robot < (unsigned)num_robots; ++robot) {
     unsigned startIdx = robot * num_poses_per_robot;
-    unsigned endIdx = (robot + 1) * num_poses_per_robot;  // non-inclusive
-    if (robot == (unsigned) num_robots - 1) endIdx = n;
+    unsigned endIdx = (robot + 1) * num_poses_per_robot; // non-inclusive
+    if (robot == (unsigned)num_robots - 1)
+      endIdx = n;
+    robot_indices_file << startIdx << " " << endIdx << endl;
+    cout << "Robot " << robot << " poses: " << startIdx << " to " << endIdx
+         << endl;
     for (unsigned idx = startIdx; idx < endIdx; ++idx) {
-      unsigned localIdx = idx - startIdx;  // this is the local ID of this pose
+      unsigned localIdx = idx - startIdx; // this is the local ID of this pose
       PoseID pose(robot, localIdx);
       PoseMap[idx] = pose;
     }
   }
+
+  robot_indices_file.close();
 
   vector<vector<RelativeSEMeasurement>> odometry(num_robots);
   vector<vector<RelativeSEMeasurement>> private_loop_closures(num_robots);
@@ -124,22 +134,22 @@ int main(int argc, char **argv) {
   ###########################################
   */
   vector<PGOAgent *> agents;
-  for (unsigned robot = 0; robot < (unsigned) num_robots; ++robot) {
+  for (unsigned robot = 0; robot < (unsigned)num_robots; ++robot) {
     PGOAgentParameters options(d, r, num_robots);
     options.acceleration = acceleration;
     options.verbose = verbose;
 
     auto *agent = new PGOAgent(robot, options);
 
-    // All agents share a special, common matrix called the 'lifting matrix' which the first agent will generate
+    // All agents share a special, common matrix called the 'lifting matrix'
+    // which the first agent will generate
     if (robot > 0) {
       Matrix M;
       agents[0]->getLiftingMatrix(M);
       agent->setLiftingMatrix(M);
     }
 
-    agent->setMeasurements(odometry[robot],
-                           private_loop_closures[robot],
+    agent->setMeasurements(odometry[robot], private_loop_closures[robot],
                            shared_loop_closure[robot]);
     agent->initialize();
     agents.push_back(agent);
@@ -147,16 +157,21 @@ int main(int argc, char **argv) {
 
   /**
   ##########################################################################################
-  For this demo, we initialize each robot's estimate from the centralized chordal relaxation
+  For this demo, we initialize each robot's estimate from the centralized
+  chordal relaxation
   ##########################################################################################
   */
   auto TChordal = chordalInitialization(dataset);
-  Matrix XChordal = fixedStiefelVariable(d, r) * TChordal.getData(); // Lift estimate to the correct relaxation rank
-  for (unsigned robot = 0; robot < (unsigned) num_robots; ++robot) {
+  Matrix XChordal =
+      fixedStiefelVariable(d, r) *
+      TChordal.getData(); // Lift estimate to the correct relaxation rank
+  for (unsigned robot = 0; robot < (unsigned)num_robots; ++robot) {
     unsigned startIdx = robot * num_poses_per_robot;
-    unsigned endIdx = (robot + 1) * num_poses_per_robot;  // non-inclusive
-    if (robot == (unsigned) num_robots - 1) endIdx = n;
-    agents[robot]->setX(XChordal.block(0, startIdx * (d + 1), r, (endIdx - startIdx) * (d + 1)));
+    unsigned endIdx = (robot + 1) * num_poses_per_robot; // non-inclusive
+    if (robot == (unsigned)num_robots - 1)
+      endIdx = n;
+    agents[robot]->setX(XChordal.block(0, startIdx * (d + 1), r,
+                                       (endIdx - startIdx) * (d + 1)));
   }
 
   /**
@@ -181,7 +196,8 @@ int main(int argc, char **argv) {
 
     // Selected robot requests public poses from others
     for (auto *robotPtr : agents) {
-      if (robotPtr->getID() == selectedRobot) continue;
+      if (robotPtr->getID() == selectedRobot)
+        continue;
       PoseDict sharedPoses;
       if (!robotPtr->getSharedPoseDict(sharedPoses)) {
         continue;
@@ -193,13 +209,15 @@ int main(int argc, char **argv) {
     // When using acceleration, selected robot also requests auxiliary poses
     if (acceleration) {
       for (auto *robotPtr : agents) {
-        if (robotPtr->getID() == selectedRobot) continue;
+        if (robotPtr->getID() == selectedRobot)
+          continue;
         PoseDict auxSharedPoses;
         if (!robotPtr->getAuxSharedPoseDict(auxSharedPoses)) {
           continue;
         }
         selectedRobotPtr->setNeighborStatus(robotPtr->getStatus());
-        selectedRobotPtr->updateAuxNeighborPoses(robotPtr->getID(), auxSharedPoses);
+        selectedRobotPtr->updateAuxNeighborPoses(robotPtr->getID(),
+                                                 auxSharedPoses);
       }
     }
 
@@ -207,26 +225,27 @@ int main(int argc, char **argv) {
     selectedRobotPtr->iterate(true);
 
     // Form centralized solution
-    for (unsigned robot = 0; robot < (unsigned) num_robots; ++robot) {
+    for (unsigned robot = 0; robot < (unsigned)num_robots; ++robot) {
       unsigned startIdx = robot * num_poses_per_robot;
-      unsigned endIdx = (robot + 1) * num_poses_per_robot;  // non-inclusive
-      if (robot == (unsigned) num_robots - 1) endIdx = n;
+      unsigned endIdx = (robot + 1) * num_poses_per_robot; // non-inclusive
+      if (robot == (unsigned)num_robots - 1)
+        endIdx = n;
 
       Matrix XRobot;
       if (agents[robot]->getX(XRobot)) {
-        Xopt.block(0, startIdx * (d + 1), r, (endIdx - startIdx) * (d + 1)) = XRobot;
+        Xopt.block(0, startIdx * (d + 1), r, (endIdx - startIdx) * (d + 1)) =
+            XRobot;
       }
     }
     Matrix RGrad = problemCentral.RieGrad(Xopt);
     double RGradNorm = RGrad.norm();
-    std::cout << std::setprecision(5)
-              << "Iter = " << iter << " | "
+    std::cout << std::setprecision(5) << "Iter = " << iter << " | "
               << "robot = " << selectedRobotPtr->getID() << " | "
               << "cost = " << 2 * problemCentral.f(Xopt) << " | "
               << "gradnorm = " << RGradNorm << std::endl;
 
     // Exit if gradient norm is sufficiently small
-    if (RGradNorm < 0.1) {
+    if (RGradNorm < 0.1 and iter > 1) {
       break;
     }
 
@@ -236,14 +255,17 @@ int main(int argc, char **argv) {
       selectedRobot = selectedRobotPtr->getID();
     } else {
       std::vector<double> gradNorms;
-      for (size_t robot = 0; robot < (unsigned) num_robots; ++robot) {
+      for (size_t robot = 0; robot < (unsigned)num_robots; ++robot) {
         unsigned startIdx = robot * num_poses_per_robot;
-        unsigned endIdx = (robot + 1) * num_poses_per_robot;  // non-inclusive
-        if (robot == (unsigned) num_robots - 1) endIdx = n;
-        Matrix RGradRobot = RGrad.block(0, startIdx * (d + 1), r, (endIdx - startIdx) * (d + 1));
+        unsigned endIdx = (robot + 1) * num_poses_per_robot; // non-inclusive
+        if (robot == (unsigned)num_robots - 1)
+          endIdx = n;
+        Matrix RGradRobot = RGrad.block(0, startIdx * (d + 1), r,
+                                        (endIdx - startIdx) * (d + 1));
         gradNorms.push_back(RGradRobot.norm());
       }
-      selectedRobot = std::max_element(gradNorms.begin(), gradNorms.end()) - gradNorms.begin();
+      selectedRobot = std::max_element(gradNorms.begin(), gradNorms.end()) -
+                      gradNorms.begin();
     }
 
     // Share global anchor for rounding
@@ -254,7 +276,35 @@ int main(int argc, char **argv) {
     }
   }
 
+  // save the results matrix to a file
+  string filename = "optimized.g2o";
+  ofstream results_file(filename, ios::out);
+  for (size_t robot = 0; robot < (unsigned)num_robots; ++robot) {
+    unsigned startIdx = robot * num_poses_per_robot;
+    unsigned endIdx = (robot + 1) * num_poses_per_robot; // non-inclusive
+
+    Matrix results;
+    auto agentPtr = agents[robot];
+    agentPtr->getTrajectoryInGlobalFrame(results);
+    std::cout << "rows: " << results.rows() << " cols: " << results.cols()
+              << std::endl;
+    for (int i = 0; i < endIdx - startIdx; ++i) {
+      Eigen::MatrixXd rt = results.block(0, i * (d + 1), 2, (d + 1));
+      Matrix r = rt.block(0, 0, 2, 2);
+      Matrix t = rt.block(0, 2, 2, 1);
+      // rotation matrix to theta
+      double theta = atan2(r(1, 0), r(0, 0));
+      results_file << "VERTEX_SE2 " << i + startIdx << " " << t(0, 0) << " "
+                   << t(1, 0) << " " << theta << std::endl;
+    }
+  }
+
+  std::cout << Xopt.rows() << " " << Xopt.cols() << std::endl;
+
+  std::cout << Xopt.block(0, 0, 5, 5) << std::endl;
+
   for (auto agentPtr : agents) {
+
     agentPtr->reset();
   }
 
