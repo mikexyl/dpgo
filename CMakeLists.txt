@@ -77,6 +77,7 @@ add_library(DPGO SHARED
 	src/manifold/LiftedSEVariable.cpp
 	src/manifold/LiftedSEVector.cpp
 	src/PoseGraph.cpp
+	src/PGOAgentBase.cpp
 	src/PGOAgent.cpp
 	src/QuadraticProblem.cpp
 	src/QuadraticOptimizer.cpp
