@@ -43,6 +43,8 @@ find_package(Boost)
 find_package(Eigen3 REQUIRED)
 message(STATUS "Found Eigen version: ${EIGEN3_VERSION}")
 message(STATUS "EIGEN3_INCLUDE_DIR: ${EIGEN3_INCLUDE_DIR}")
+find_package(GTSAM REQUIRED)
+find_package(cbs REQUIRED)
 find_package(Glog REQUIRED)
 if (GLOG_FOUND)
 	message(STATUS "Found Google Logging: ${GLOG_INCLUDE_DIRS}")
@@ -69,7 +71,13 @@ set(EXTERNAL_INCLUDES
 	${EIGEN3_INCLUDE_DIR}
 	${Boost_INCLUDE_DIRS}
 	${GLOG_INCLUDE_DIRS}
+	${GTSAM_INCLUDE_DIR}
 	CACHE INTERNAL "")
+
+# CBS includes
+get_target_property(CBS_INCLUDE_DIRS cbs INTERFACE_INCLUDE_DIRECTORIES)
+message(STATUS "CBS_INCLUDE_DIRS: ${CBS_INCLUDE_DIRS}")
+list(APPEND EXTERNAL_INCLUDES ${CBS_INCLUDE_DIRS})
 
 add_library(DPGO SHARED
 	src/manifold/Poses.cpp
@@ -79,12 +87,14 @@ add_library(DPGO SHARED
 	src/PoseGraph.cpp
 	src/PGOAgentBase.cpp
 	src/PGOAgent.cpp
+	src/CBSAgent.cpp
 	src/QuadraticProblem.cpp
 	src/QuadraticOptimizer.cpp
 	src/DPGO_utils.cpp
 	src/DPGO_solver.cpp
     src/DPGO_robust.cpp
-	src/PGOLogger.cpp)
+	src/PGOLogger.cpp
+	src/GTSAM_utils.cpp)
 
 target_include_directories(DPGO PUBLIC
 	${EXTERNAL_INCLUDES}
@@ -98,7 +108,9 @@ target_link_libraries(DPGO
 		${GLOG_LIBRARIES}
 		${CHOLMOD_LIBRARIES}
 		${SPQR_LIBRARIES}
-		${Boost_LIBRARIES})
+		${Boost_LIBRARIES}
+		gtsam
+		cbs)
 
 if(OPENMP_FOUND)
 # Add additional compilation flags to enable OpenMP support

@@ -518,7 +518,7 @@ class PGOAgentBase {
   /**
   Get lifting matrix
   */
-  bool getLiftingMatrix(Matrix &M) const;
+  virtual bool getLiftingMatrix(Matrix &M) const;
 
   /**
   Set the lifting matrix

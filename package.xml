@@ -8,6 +8,11 @@
   <license>MIT</license>
 
   <buildtool_depend>cmake</buildtool_depend>
+
+  <depend>gtsam</depend>
+  <depend>cbs</depend>
+  <depend>eigen</depend>
+
   <export>
     <!-- Specify that this is not really a catkin package-->
     <build_type>cmake</build_type>
