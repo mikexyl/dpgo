@@ -15,7 +15,7 @@
 namespace DPGO {
 
 /**
- * @brief Concrete implementation of PGOAgentBase using DPGO's Riemannian optimization
+ * @brief DC2PGO
  */
 class PGOAgent : public PGOAgentBase {
  public:
@@ -31,12 +31,6 @@ class PGOAgent : public PGOAgentBase {
    * @brief Destructor
    */
   ~PGOAgent() override = default;
-
-  /**
-   * @brief Perform local PGO using the standard L2 (least-squares) cost function
-   * @return trajectory estimate in matrix form T = [R1 t1 ... Rn tn] in an arbitrary frame
-   */
-  Matrix localPoseGraphOptimization() override;
 
  protected:
   /**

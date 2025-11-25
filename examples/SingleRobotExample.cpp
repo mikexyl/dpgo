@@ -91,17 +91,5 @@ int main(int argc, char **argv) {
                          shared_loop_closure);
   agent->initialize();
 
-  /**
-  ###########################################
-  Local Pose Graph Optimization
-  ###########################################
-  */
-
-  cout << "Running local pose graph optimization..." << endl;
-  Matrix X = agent->localPoseGraphOptimization();
-
-  // Evaluate
-  std::cout << "Cost = " << 2 * problemCentral.f(X) << endl;
-
   exit(0);
 }

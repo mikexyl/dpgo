@@ -22,13 +22,6 @@ PGOAgent::PGOAgent(unsigned ID, const PGOAgentParameters &params)
   // Derived class specific initialization if needed
 }
 
-Matrix PGOAgent::localPoseGraphOptimization() {
-  ROptParameters pgo_params;
-  pgo_params.verbose = true;
-  const auto T = solvePGO(mPoseGraph->localMeasurements(), pgo_params);
-  return T.getData();
-}
-
 bool PGOAgent::performOptimization(bool doOptimization, bool acceleration) {
   // Lock during local optimization
   unique_lock<mutex> tLock(mPosesMutex);

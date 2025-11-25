@@ -53,9 +53,6 @@ TEST(testDPGO, TriangleGraph) {
                         shared_loop_closures);
   agent.initialize();
 
-  Matrix TLocal = agent.localPoseGraphOptimization();
-  ASSERT_LE((Ttrue - TLocal).norm(), 1e-4);
-
   Matrix T;
   agent.getTrajectoryInLocalFrame(T);
   ASSERT_LE((Ttrue - T).norm(), 1e-4);
