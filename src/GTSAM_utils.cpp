@@ -6,6 +6,7 @@
  * -------------------------------------------------------------------------- */
 
 #include <DPGO/GTSAM_utils.h>
+#include <cbs/key.h>
 #include <glog/logging.h>
 #include <gtsam/geometry/Rot2.h>
 #include <gtsam/geometry/Rot3.h>
@@ -14,17 +15,7 @@
 namespace DPGO {
 namespace GTSAMUtils {
 
-gtsam::Key makeKey(unsigned robotID, unsigned poseID, char robotSymbol,
-                   char poseSymbol) {
-  return gtsam::LabeledSymbol(poseSymbol, robotID, poseID).key();
-}
-
 gtsam::Pose3 toGTSAMPose3(const Matrix &pose) {
-  CHECK_EQ(pose.rows(), 3) << "matrix shape: " << pose.rows() << "x"
-                           << pose.cols();
-  CHECK_EQ(pose.cols(), 4) << "matrix shape: " << pose.rows() << "x"
-                           << pose.cols();
-
   // Extract rotation matrix and translation vector
   Eigen::Matrix3d R = pose.block<3, 3>(0, 0);
   Eigen::Vector3d t = pose.block<3, 1>(0, 3);
@@ -46,10 +37,8 @@ toGTSAMBetweenFactor3D(const RelativeSEMeasurement &measurement,
                        char robotSymbol, char poseSymbol) {
 
   // Create keys
-  gtsam::Key key1 =
-      makeKey(measurement.r1, measurement.p1, robotSymbol, poseSymbol);
-  gtsam::Key key2 =
-      makeKey(measurement.r2, measurement.p2, robotSymbol, poseSymbol);
+  gtsam::Key key1 = cbs::toPoseKey(measurement.r1 + 'a', measurement.p1);
+  gtsam::Key key2 = cbs::toPoseKey(measurement.r2 + 'a', measurement.p2);
 
   // Convert relative pose measurement
   Eigen::Matrix3d R = measurement.R;
@@ -101,10 +90,8 @@ gtsam::NonlinearFactorGraph poseGraphToGTSAM3D(const PoseGraph &poseGraph,
                                                bool includeInactive) {
 
   // Get all measurements from the pose graph
-  std::vector<RelativeSEMeasurement> measurements =
-      poseGraph.localMeasurements();
-
-  return toGTSAMFactorGraph3D(measurements, robotSymbol, poseSymbol);
+  return toGTSAMFactorGraph3D(poseGraph.measurements(), robotSymbol,
+                              poseSymbol);
 }
 
 gtsam::Values toGTSAMValues3D(const PoseArray &poses, unsigned robotID,
@@ -112,12 +99,10 @@ gtsam::Values toGTSAMValues3D(const PoseArray &poses, unsigned robotID,
 
   gtsam::Values values;
 
-  CHECK_EQ(poses.d(), 3) << "PoseArray dimension must be 3 for SE(3)";
-
   for (unsigned i = 0; i < poses.n(); ++i) {
     Matrix T = poses.pose(i);
     gtsam::Pose3 pose = toGTSAMPose3(T);
-    gtsam::Key key = makeKey(robotID, i, robotSymbol, poseSymbol);
+    gtsam::Key key = cbs::toPoseKey(robotID + 'a', i);
     values.insert(key, pose);
   }
 

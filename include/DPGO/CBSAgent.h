@@ -40,7 +40,7 @@ namespace DPGO {
 class CBSAgent : public PGOAgentBase {
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  
+
   /**
    * @brief Construct a new CBS Agent
    *
@@ -64,6 +64,16 @@ public:
   bool performOptimization(bool doOpt, bool accel) override;
 
   Matrix getPoseMarginal(const PoseID &pose_id) const override;
+
+  gtsam::GraphAndValues getFactorsAndValues() const override {
+    CHECK_NOTNULL(bpsam_);
+    auto gtsam_graph = boost::make_shared<gtsam::NonlinearFactorGraph>(
+        bpsam_->getFactorsUnsafe());
+    auto values =
+        boost::make_shared<gtsam::Values>(bpsam_->calculateEstimate());
+    gtsam::GraphAndValues gav(gtsam_graph, values);
+    return gav;
+  }
 
 protected:
   // GTSAM factor graph and values (using pointers to avoid including full

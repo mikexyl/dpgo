@@ -111,18 +111,6 @@ gtsam::Pose3 toGTSAMPose3(const Matrix &pose);
 gtsam::Values toGTSAMValues3D(const PoseArray &poses, unsigned robotID = 0,
                               char robotSymbol = 'r', char poseSymbol = 'x');
 
-/**
- * @brief Create a GTSAM key from robot and pose indices
- * @param robotID Robot index
- * @param poseID Pose index
- * @param robotSymbol Symbol for robot (default 'r')
- * @param poseSymbol Symbol for pose (default 'x')
- * @param useMultiRobotKeys If true, use LabeledSymbol with robot label
- * @return GTSAM Key
- */
-gtsam::Key makeKey(unsigned robotID, unsigned poseID, char robotSymbol = 'r',
-                   char poseSymbol = 'x');
-
 } // namespace GTSAMUtils
 
 } // namespace DPGO

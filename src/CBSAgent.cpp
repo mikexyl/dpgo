@@ -56,23 +56,40 @@ bool CBSAgent::performOptimization(bool doOpt, bool accel) {
 
   // read beliefs from shared poses
   std::map<Key, std::vector<std::pair<cbs::AgentId, gbp::Gaussian>>> beliefs;
+  int n_beliefs{0}, n_no_sigma{0};
+  std::stringstream belief_key_ss;
   for (auto kv : neighborPoseDict) {
     const PoseID &nID = kv.first;
     const auto &var = kv.second;
-    auto labeled_key = cbs::toPoseKey(nID.robot_id, nID.frame_id);
+    auto labeled_key = cbs::toPoseKey(nID.robot_id + 'a', nID.frame_id);
     // if var's sigma is empty, skip
     if (var.Sigma_.rows() == 0) {
+      n_no_sigma++;
       continue;
     }
+    n_beliefs++;
     gbp::Gaussian gauss(labeled_key,
                         gtsam::traits<gtsam::Pose3>::Logmap(
                             GTSAMUtils::toGTSAMPose3(var.pose())),
                         var.Sigma_, 1);
-    beliefs[labeled_key].emplace_back(nID.robot_id, gauss);
+    beliefs[labeled_key].emplace_back(nID.robot_id + 'a', gauss);
+    belief_key_ss << gtsam::MultiRobotKeyFormatter(labeled_key) << " ";
   }
+  VLOG(1) << "CBSAgent::performOptimization(): Robot " << mID << " has "
+          << n_beliefs << " beliefs, " << n_no_sigma
+          << " beliefs with no sigma.";
+  VLOG(1) << "belief keys: " << belief_key_ss.str();
 
   auto gtsam_graph_all = GTSAMUtils::poseGraphToGTSAM3D(
       *mPoseGraph, cbs::kRobotLabel, cbs::kPoseLabel, true);
+
+  std::stringstream factor_key_ss;
+  for (const auto &key : gtsam_graph_all.keys()) {
+    factor_key_ss << gtsam::MultiRobotKeyFormatter(key) << " ";
+  }
+  VLOG(1) << "CBSAgent::performOptimization(): Robot " << mID << " has "
+          << gtsam_graph_all.size()
+          << " factors. keys: " << factor_key_ss.str();
 
   // because cbs stores the belief changes internally, we can't reset bpsam
   // create a new graph with only new factors
@@ -103,7 +120,7 @@ bool CBSAgent::performOptimization(bool doOpt, bool accel) {
   // get current estimates from X
   gtsam::Values initial_values;
   for (int i = 0; i < num_poses(); ++i) {
-    auto key = cbs::toPoseKey(mID, i);
+    auto key = cbs::toPoseKey(mID + 'a', i);
     Matrix Ri = X.getData().block(0, i * (d + 1), d, d);
     Matrix ti = X.getData().block(0, i * (d + 1) + d, d, 1);
     gtsam::Rot3 rot(Ri);
@@ -126,28 +143,39 @@ bool CBSAgent::performOptimization(bool doOpt, bool accel) {
   // prior
   if (bpsam_->getFactorsUnsafe().size() == 0) {
     // anchor pose
-    auto first_key = cbs::toPoseKey(mID, 0);
+    auto first_key = cbs::toPoseKey(mID + 'a', 0);
     gtsam::Pose3 prior_pose = initial_values.at<gtsam::Pose3>(first_key);
     auto prior_noise = gtsam::noiseModel::Isotropic::Sigma(6, 1e-4);
     auto prior_factor = boost::make_shared<gtsam::PriorFactor<gtsam::Pose3>>(
         first_key, prior_pose, prior_noise);
     // print prior pose
-    LOG(INFO) << "Adding prior factor at first pose: "
-              << gtsam::MultiRobotKeyFormatter(first_key)
-              << " pose: " << prior_pose.translation().transpose();
+    VLOG(1) << "Adding prior factor at first pose: "
+            << gtsam::MultiRobotKeyFormatter(first_key)
+            << " pose: " << prior_pose.translation().transpose();
     gtsam_graph.add(prior_factor);
   }
 
   cbs::BPSAM::UpdateParams update_params;
   // update once to initialize the graph
-  // bpsam_->addBeliefs<gtsam::Pose3>(beliefs);
-  bpsam_->update(gtsam_graph, initial_values, update_params);
+  bpsam_->addBeliefs<gtsam::Pose3>(beliefs);
+  try {
+    bpsam_->update(gtsam_graph, initial_values, update_params);
+  } catch (gtsam::IndeterminantLinearSystemException &e) {
+    // save graph as .dot file
+    bpsam_->getFactorsUnsafe().saveGraph("/tmp/cbs_agent_" +
+                                             std::to_string(mID) + ".dot",
+                                         gtsam::MultiRobotKeyFormatter);
+
+    LOG(FATAL) << "CBSAgent::performOptimization(): BPSAM update failed: "
+               << e.what()
+               << "key: " << MultiRobotKeyFormatter(e.nearbyVariable());
+  }
 
   // Return empty Matrix for now
   Matrix result_X(d, num_poses() * (d + 1));
   auto values = bpsam_->calculateEstimate();
   for (int i = 0; i < num_poses(); ++i) {
-    auto key = cbs::toPoseKey(mID, i);
+    auto key = cbs::toPoseKey(mID + 'a', i);
     if (values.exists(key)) {
       gtsam::Pose3 pose = values.at<gtsam::Pose3>(key);
       Matrix Ri = pose.rotation().matrix();
@@ -173,7 +201,7 @@ bool CBSAgent::performOptimization(bool doOpt, bool accel) {
 }
 
 Matrix CBSAgent::getPoseMarginal(const PoseID &pose_id) const {
-  auto key = cbs::toPoseKey(pose_id.robot_id, pose_id.frame_id);
+  auto key = cbs::toPoseKey(pose_id.robot_id + 'a', pose_id.frame_id);
   try {
     if (bpsam_->marginalizationFactors().size() == 0) {
       return Matrix();

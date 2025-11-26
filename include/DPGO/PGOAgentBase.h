@@ -20,6 +20,8 @@
 
 #include <Eigen/Dense>
 #include <glog/logging.h>
+#include <gtsam/nonlinear/NonlinearFactorGraph.h>
+#include <gtsam/slam/dataset.h>
 #include <map>
 #include <mutex>
 #include <optional>
@@ -792,6 +794,8 @@ protected:
    */
   Pose computeNeighborTransform(const RelativeSEMeasurement &measurement,
                                 const LiftedPose &neighbor_pose);
+
+  virtual gtsam::GraphAndValues getFactorsAndValues() const { return {}; }
 
   // Stores the auxiliary variables from neighbors (only used in acceleration)
   PoseDict neighborAuxPoseDict;
