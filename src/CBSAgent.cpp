@@ -102,20 +102,14 @@ bool CBSAgent::performOptimization(bool doOpt, bool accel) {
 
   // get current estimates from X
   gtsam::Values initial_values;
-  PoseArray T_local_traj(dimension(), num_poses());
-  if (getTrajectoryInLocalFrame(T_local_traj)) {
-    for (int i = 0; i < num_poses(); ++i) {
-      auto key = cbs::toPoseKey(mID, i);
-      Matrix Ri = T_local_traj.getData().block(0, i * (d + 1), d, d);
-      Matrix ti = T_local_traj.getData().block(0, i * (d + 1) + d, d, 1);
-      gtsam::Rot3 rot(Ri);
-      gtsam::Point3 trans(ti);
-      gtsam::Pose3 pose(rot, trans);
-      initial_values.insert(key, pose);
-    }
-  } else {
-    LOG(WARNING) << "CBSAgent::localPoseGraphOptimization(): Failed to get "
-                    "local trajectory.";
+  for (int i = 0; i < num_poses(); ++i) {
+    auto key = cbs::toPoseKey(mID, i);
+    Matrix Ri = X.getData().block(0, i * (d + 1), d, d);
+    Matrix ti = X.getData().block(0, i * (d + 1) + d, d, 1);
+    gtsam::Rot3 rot(Ri);
+    gtsam::Point3 trans(ti);
+    gtsam::Pose3 pose(rot, trans);
+    initial_values.insert(key, pose);
   }
 
   // add any missing values to initial_values
@@ -131,10 +125,16 @@ bool CBSAgent::performOptimization(bool doOpt, bool accel) {
   // if bpsam has no factors, which means it's the first optimization, add a
   // prior
   if (bpsam_->getFactorsUnsafe().size() == 0) {
+    // anchor pose
     auto first_key = cbs::toPoseKey(mID, 0);
+    gtsam::Pose3 prior_pose = initial_values.at<gtsam::Pose3>(first_key);
     auto prior_noise = gtsam::noiseModel::Isotropic::Sigma(6, 1e-4);
     auto prior_factor = boost::make_shared<gtsam::PriorFactor<gtsam::Pose3>>(
-        first_key, gtsam::Pose3(), prior_noise);
+        first_key, prior_pose, prior_noise);
+    // print prior pose
+    LOG(INFO) << "Adding prior factor at first pose: "
+              << gtsam::MultiRobotKeyFormatter(first_key)
+              << " pose: " << prior_pose.translation().transpose();
     gtsam_graph.add(prior_factor);
   }
 

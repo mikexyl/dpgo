@@ -20,8 +20,10 @@ gtsam::Key makeKey(unsigned robotID, unsigned poseID, char robotSymbol,
 }
 
 gtsam::Pose3 toGTSAMPose3(const Matrix &pose) {
-  CHECK_EQ(pose.rows(), 4);
-  CHECK_EQ(pose.cols(), 4);
+  CHECK_EQ(pose.rows(), 3) << "matrix shape: " << pose.rows() << "x"
+                           << pose.cols();
+  CHECK_EQ(pose.cols(), 4) << "matrix shape: " << pose.rows() << "x"
+                           << pose.cols();
 
   // Extract rotation matrix and translation vector
   Eigen::Matrix3d R = pose.block<3, 3>(0, 0);
@@ -78,7 +80,6 @@ toGTSAMBetweenFactor3D(const RelativeSEMeasurement &measurement,
   return boost::make_shared<gtsam::BetweenFactor<gtsam::Pose3>>(
       key1, key2, relativePose, noise);
 }
-
 
 gtsam::NonlinearFactorGraph
 toGTSAMFactorGraph3D(const std::vector<RelativeSEMeasurement> &measurements,

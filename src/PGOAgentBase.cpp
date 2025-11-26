@@ -801,6 +801,8 @@ bool PGOAgentBase::getTrajectoryInGlobalFrame(PoseArray &Trajectory) {
   if (!globalAnchor)
     return false;
   auto Xa = globalAnchor.value();
+  // print anchor's t
+  LOG(INFO) << "Anchor translation: " << Xa.translation().transpose();
   CHECK(Xa.r() == relaxation_rank());
   CHECK(Xa.d() == dimension());
   if (mState != PGOAgentState::INITIALIZED)
@@ -897,6 +899,7 @@ void PGOAgentBase::setGlobalAnchor(const Matrix &M) {
   LiftedPose Xa(r, d);
   Xa.pose() = M;
   globalAnchor.emplace(Xa);
+  LOG(INFO) << "Robot " << getID() << " sets global anchor at pose:\n" << M;
 }
 
 bool PGOAgentBase::shouldTerminate() {
