@@ -541,6 +541,9 @@ public:
    */
   void updateNeighborPoses(unsigned neighborID, const PoseDict &poseDict);
 
+  void updateNeighborLocalOrigin(unsigned neighborID,
+                                 const Pose &T_world_robot);
+
   /**
    * @brief Update local copy of a neighbor's auxiliary pose
    * @param neighborID
@@ -658,6 +661,8 @@ protected:
 
   // Thread that runs optimization loop in asynchronous mode
   std::unique_ptr<thread> mOptimizationThread;
+
+  std::map<unsigned, Pose> mNeighborLocalOrigins;
 
   /**
    * @brief Reset variables used in Nesterov acceleration

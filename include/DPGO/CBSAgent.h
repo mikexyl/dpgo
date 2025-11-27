@@ -29,6 +29,9 @@ class Values;
 
 namespace DPGO {
 
+using OptWatcherFunc =
+    std::function<void(const NonlinearFactorGraph &, const Values &)>;
+
 /**
  * @brief PGO agent using CBS/BPSAM optimizer instead of Riemannian optimization
  *
@@ -47,7 +50,8 @@ public:
    * @param ID Robot ID
    * @param params PGO agent parameters
    */
-  CBSAgent(unsigned ID, const PGOAgentParameters &params);
+  CBSAgent(unsigned ID, const PGOAgentParameters &params,
+           OptWatcherFunc opt_watcher = nullptr);
 
   /**
    * @brief Destructor
@@ -75,12 +79,35 @@ public:
     return gav;
   }
 
+  void setOptWatcher(OptWatcherFunc opt_watcher) { opt_watcher_ = opt_watcher; }
+
+  void reset() override {
+    PGOAgentBase::reset();
+
+    {
+      std::lock_guard<std::mutex> lock(marginals_mutex_);
+      cached_marginals_.clear();
+    }
+
+    T_w_o_.reset();
+    auto params = bpsam_->getParams();
+
+    bpsam_ = std::make_shared<cbs::BPSAM>(params);
+  }
+
 protected:
   // GTSAM factor graph and values (using pointers to avoid including full
   // headers)
   std::shared_ptr<gtsam::NonlinearFactorGraph> graph_;
   std::shared_ptr<gtsam::Values> current_estimate_;
   std::shared_ptr<cbs::BPSAM> bpsam_;
+
+  std::map<Key, Vector6> cached_marginals_;
+  mutable std::mutex marginals_mutex_;
+
+  std::optional<gtsam::Pose3> T_w_o_;
+
+  OptWatcherFunc opt_watcher_;
 };
 
 } // namespace DPGO

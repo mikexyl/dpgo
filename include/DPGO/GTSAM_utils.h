@@ -53,7 +53,8 @@ toGTSAMBetweenFactor2D(const RelativeSEMeasurement &measurement,
  * @return Shared pointer to GTSAM BetweenFactor<Pose3>
  */
 gtsam::BetweenFactor<gtsam::Pose3>::shared_ptr
-toGTSAMBetweenFactor3D(const RelativeSEMeasurement &measurement,
+toGTSAMBetweenFactor3D(size_t robot_id,
+                       const RelativeSEMeasurement &measurement,
                        char robotSymbol = 'r', char poseSymbol = 'x');
 
 /**
@@ -77,7 +78,8 @@ toGTSAMFactorGraph2D(const std::vector<RelativeSEMeasurement> &measurements,
  * @return GTSAM NonlinearFactorGraph
  */
 gtsam::NonlinearFactorGraph
-toGTSAMFactorGraph3D(const std::vector<RelativeSEMeasurement> &measurements,
+toGTSAMFactorGraph3D(size_t robot_id,
+                     const std::vector<RelativeSEMeasurement> &measurements,
                      char robotSymbol = 'r', char poseSymbol = 'x');
 
 /**
@@ -88,7 +90,8 @@ toGTSAMFactorGraph3D(const std::vector<RelativeSEMeasurement> &measurements,
  * @param includeInactive If true, include measurements with inactive neighbors
  * @return GTSAM NonlinearFactorGraph
  */
-gtsam::NonlinearFactorGraph poseGraphToGTSAM3D(const PoseGraph &poseGraph,
+gtsam::NonlinearFactorGraph poseGraphToGTSAM3D(size_t robot_id,
+                                               const PoseGraph &poseGraph,
                                                char robotSymbol = 'r',
                                                char poseSymbol = 'x',
                                                bool includeInactive = false);

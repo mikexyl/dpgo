@@ -33,8 +33,15 @@ Matrix fromGTSAMPose3(const gtsam::Pose3 &pose) {
 }
 
 gtsam::BetweenFactor<gtsam::Pose3>::shared_ptr
-toGTSAMBetweenFactor3D(const RelativeSEMeasurement &measurement,
+toGTSAMBetweenFactor3D(size_t robot_id,
+                       const RelativeSEMeasurement &measurement,
                        char robotSymbol, char poseSymbol) {
+  bool is_inter_robot = (measurement.r1 != measurement.r2);
+  // if it's inter robot, then only add the outgoing factor, to avoid duplicate
+  // in CBS
+  if (is_inter_robot && measurement.r2 == robot_id) {
+    return nullptr;
+  }
 
   // Create keys
   gtsam::Key key1 = cbs::toPoseKey(measurement.r1 + 'a', measurement.p1);
@@ -59,38 +66,44 @@ toGTSAMBetweenFactor3D(const RelativeSEMeasurement &measurement,
 
   gtsam::SharedNoiseModel noise = gtsam::noiseModel::Diagonal::Sigmas(sigmas);
 
-  // Scale by weight for robust optimization
-  if (measurement.weight < 1.0) {
-    noise = gtsam::noiseModel::Robust::Create(
-        gtsam::noiseModel::mEstimator::Huber::Create(measurement.weight),
-        noise);
-  }
+  auto robust_noise = gtsam::noiseModel::Robust::Create(
+      gtsam::noiseModel::mEstimator::DCS::Create(3), noise);
 
   return boost::make_shared<gtsam::BetweenFactor<gtsam::Pose3>>(
-      key1, key2, relativePose, noise);
+      key1, key2, relativePose, robust_noise);
 }
 
 gtsam::NonlinearFactorGraph
-toGTSAMFactorGraph3D(const std::vector<RelativeSEMeasurement> &measurements,
+toGTSAMFactorGraph3D(size_t robot_id,
+                     const std::vector<RelativeSEMeasurement> &measurements,
                      char robotSymbol, char poseSymbol) {
 
   gtsam::NonlinearFactorGraph graph;
 
+  int n_rejected_loops{0};
   for (const auto &measurement : measurements) {
-    graph.push_back(
-        toGTSAMBetweenFactor3D(measurement, robotSymbol, poseSymbol));
+    if (auto factor = toGTSAMBetweenFactor3D(robot_id, measurement, robotSymbol,
+                                             poseSymbol)) {
+      graph.add(factor);
+    } else {
+      n_rejected_loops++;
+    }
   }
+
+  LOG(INFO) << "GTSAMUtils::toGTSAMFactorGraph3D(): Robot " << robot_id
+            << " converted " << measurements.size() - n_rejected_loops << " / "
+            << measurements.size()
+            << " measurements to GTSAM factors. Rejected " << n_rejected_loops
+            << " inter-robot incoming loops.";
 
   return graph;
 }
 
-gtsam::NonlinearFactorGraph poseGraphToGTSAM3D(const PoseGraph &poseGraph,
-                                               char robotSymbol,
-                                               char poseSymbol,
-                                               bool includeInactive) {
-
+gtsam::NonlinearFactorGraph
+poseGraphToGTSAM3D(size_t robot_id, const PoseGraph &poseGraph,
+                   char robotSymbol, char poseSymbol, bool includeInactive) {
   // Get all measurements from the pose graph
-  return toGTSAMFactorGraph3D(poseGraph.measurements(), robotSymbol,
+  return toGTSAMFactorGraph3D(robot_id, poseGraph.measurements(), robotSymbol,
                               poseSymbol);
 }
 

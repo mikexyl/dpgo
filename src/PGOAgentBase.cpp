@@ -121,12 +121,20 @@ bool PGOAgentBase::getSharedPoseDictWithNeighbor(PoseDict &map,
       LiftedPose Xi(X.pose(m.p1));
       map.emplace(pose_id, Xi);
       auto cov = getPoseMarginal(pose_id);
+      if (cov.size() == 0) {
+        map.at(pose_id).Sigma_ = Vector::Zero(6);
+        continue;
+      }
       map.at(pose_id).Sigma_ = cov.diagonal();
     } else if (m.r2 == getID()) {
       PoseID pose_id(m.r2, m.p2);
       LiftedPose Xi(X.pose(m.p2));
-      auto cov = getPoseMarginal(pose_id);
       map.emplace(pose_id, Xi);
+      auto cov = getPoseMarginal(pose_id);
+      if (cov.size() == 0) {
+        map.at(pose_id).Sigma_ = Vector::Zero(6);
+        continue;
+      }
       map.at(pose_id).Sigma_ = cov.diagonal();
     }
   }
@@ -397,18 +405,7 @@ bool PGOAgentBase::iterate(bool doOptimization) {
     // Save current iterate
     XPrev = X;
     bool success;
-    if (mParams.acceleration) {
-      updateGamma();
-      updateAlpha();
-      updateY();
-      success = updateX(doOptimization, true);
-      updateV();
-      // Check restart condition
-      if (shouldRestart())
-        restartNesterovAcceleration(doOptimization);
-    } else {
-      success = updateX(doOptimization, false);
-    }
+    success = updateX(doOptimization, false);
 
     // Update status after local optimization step
     if (doOptimization) {
@@ -437,6 +434,13 @@ bool PGOAgentBase::iterate(bool doOptimization) {
                      stat.total_loop_closures;
       if (ratio < mParams.robustOptMinConvergenceRatio)
         readyToTerminate = false;
+
+      LOG_IF(INFO, mParams.verbose)
+          << "Robot " << getID() << " iteration " << iteration_number()
+          << " relativeChange=" << mStatus.relativeChange
+          << " threshold=" << relative_change_tol
+          << " readyToTerminate=" << readyToTerminate;
+
       mStatus.readyToTerminate = readyToTerminate;
     }
 
@@ -1230,6 +1234,15 @@ bool PGOAgentBase::anchorFirstPose(const LiftedPose &prior) {
   CHECK_EQ(prior.r(), relaxation_rank());
   mPoseGraph->setPrior(0, prior);
   return true;
+}
+
+void PGOAgentBase::updateNeighborLocalOrigin(unsigned neighborID,
+                                             const Pose &T_world_robot) {
+  if (mNeighborLocalOrigins.find(neighborID) == mNeighborLocalOrigins.end()) {
+    mNeighborLocalOrigins.emplace(neighborID, T_world_robot);
+  } else {
+    mNeighborLocalOrigins.at(neighborID) = T_world_robot;
+  }
 }
 
 } // namespace DPGO
