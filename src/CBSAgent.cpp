@@ -28,7 +28,7 @@ CBSAgent::CBSAgent(unsigned ID, const PGOAgentParameters &params,
                    OptWatcherFunc opt_watcher)
     : PGOAgentBase(ID, params), opt_watcher_(opt_watcher) {
   cbs::BPSAM::Params bpsam_params;
-  bpsam_params.root_id = ID;
+  bpsam_params.robot_id = ID + 'a';
   bpsam_params.gbp_update_params.type = gbp::GaussianMergeType::Contract;
   bpsam_params.gbp_update_params.contract_alpha = 0.2;
   bpsam_params.gbp_update_params.d_reset = 0.6;
@@ -40,6 +40,7 @@ CBSAgent::CBSAgent(unsigned ID, const PGOAgentParameters &params,
   isam2_params.optimizationParams = gn_params;
   isam2_params.setRelinearizeThreshold(0.01);
   bpsam_params.sam_params_ = isam2_params;
+  bpsam_params.enable_gkcm = false;
   bpsam_ = std::make_shared<cbs::BPSAM>(bpsam_params);
 
   LOG(INFO) << "Created CBS agent " << ID << " in " << params.d << "D";
@@ -143,7 +144,7 @@ bool CBSAgent::performOptimization(bool doOpt, bool accel) {
 
   // get current estimates from X
   gtsam::Values initial_values;
-  for (int i = 0; i < num_poses(); ++i) {
+  for (unsigned int i = 0; i < num_poses(); ++i) {
     auto key = cbs::toPoseKey(mID + 'a', i);
     Matrix Ri = X.getData().block(0, i * (d + 1), d, d);
     Matrix ti = X.getData().block(0, i * (d + 1) + d, d, 1);
@@ -181,7 +182,7 @@ bool CBSAgent::performOptimization(bool doOpt, bool accel) {
 
   cbs::BPSAM::UpdateParams update_params;
   // update once to initialize the graph
-  bpsam_->addBeliefs<gtsam::Pose3>(beliefs);
+  bpsam_->addBeliefs(beliefs);
   VLOG(1) << "CBSAgent::performOptimization(): Robot " << mID
           << " updating with " << gtsam_graph.size() << " new factors";
 
@@ -203,6 +204,10 @@ bool CBSAgent::performOptimization(bool doOpt, bool accel) {
                << e.what()
                << "key: " << MultiRobotKeyFormatter(e.nearbyVariable());
   }
+
+  bpsam_->saveLocalGraphG2o(mParams.logDirectory + "/bpsam_robot_" +
+                                std::to_string(mID) + ".g2o",
+                            true);
 
   // Compute final error and populate mLocalOptResult
   auto end_time = std::chrono::high_resolution_clock::now();
@@ -228,7 +233,7 @@ bool CBSAgent::performOptimization(bool doOpt, bool accel) {
   // Return empty Matrix for now
   Matrix result_X(d, num_poses() * (d + 1));
   auto values = bpsam_->calculateEstimate();
-  for (int i = 0; i < num_poses(); ++i) {
+  for (unsigned int i = 0; i < num_poses(); ++i) {
     auto key = cbs::toPoseKey(mID + 'a', i);
     if (values.exists(key)) {
       gtsam::Pose3 T_o_p = values.at<gtsam::Pose3>(key);

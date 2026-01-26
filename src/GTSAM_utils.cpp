@@ -36,12 +36,12 @@ gtsam::BetweenFactor<gtsam::Pose3>::shared_ptr
 toGTSAMBetweenFactor3D(size_t robot_id,
                        const RelativeSEMeasurement &measurement,
                        char robotSymbol, char poseSymbol) {
-  bool is_inter_robot = (measurement.r1 != measurement.r2);
+  // bool is_inter_robot = (measurement.r1 != measurement.r2);
   // if it's inter robot, then only add the outgoing factor, to avoid duplicate
   // in CBS
-  if (is_inter_robot && measurement.r2 == robot_id) {
-    return nullptr;
-  }
+  // if (is_inter_robot && measurement.r2 == robot_id) {
+  //   return nullptr;
+  // }
 
   // Create keys
   gtsam::Key key1 = cbs::toPoseKey(measurement.r1 + 'a', measurement.p1);
@@ -66,11 +66,11 @@ toGTSAMBetweenFactor3D(size_t robot_id,
 
   gtsam::SharedNoiseModel noise = gtsam::noiseModel::Diagonal::Sigmas(sigmas);
 
-  auto robust_noise = gtsam::noiseModel::Robust::Create(
-      gtsam::noiseModel::mEstimator::DCS::Create(3), noise);
+  // auto robust_noise = gtsam::noiseModel::Robust::Create(
+  // gtsam::noiseModel::mEstimator::DCS::Create(3), noise);
 
   return boost::make_shared<gtsam::BetweenFactor<gtsam::Pose3>>(
-      key1, key2, relativePose, robust_noise);
+      key1, key2, relativePose, noise);
 }
 
 gtsam::NonlinearFactorGraph
